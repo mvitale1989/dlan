@@ -156,7 +156,7 @@ config rule
 	option dest_ip '{{ dest_ip }}'
 {% endif %}
 	option dest_port '{{ dest_port }}'
-	option proto '{{ proxy.protocol }}'
+	option proto '{{ proxy.protocol | default("tcp") }}'
 	option target 'ACCEPT'
 {% endfor %}
 {% endfor %}
