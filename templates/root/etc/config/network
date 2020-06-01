@@ -84,8 +84,8 @@ config interface 'wg0'
 config wireguard_wg0 'wg0_peer{{ loop.index0 }}'
 	option public_key '{{ peer_variables.dlan_wg_pubkey }}'
 	option preshared_key '{{ dlan_wg_psk }}'
-{% if peer_spec and 'ip' in peer_spec %}
-	option endpoint_host '{{ peer_spec.ip }}'
+{% if peer_spec and 'host' in peer_spec %}
+	option endpoint_host '{{ peer_spec.host }}'
 	option endpoint_port '{{ peer_spec.port | default(51820) }}'
 {% endif %}
 	option route_allowed_ips 'true'
