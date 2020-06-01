@@ -1,9 +1,9 @@
 # dlan
 
 - [dlan](#dlan)
+  * [Installation and usage](#installation-and-usage)
   * [Target architecture and design](#target-architecture-and-design)
     - [Tradeoffs](#tradeoffs)
-  * [Installation and usage](#installation-and-usage)
   * [F.A.Q.](#faq)
   * [Gotchas](#gotchas)
   * [Future work](#future-work)
@@ -19,6 +19,19 @@ Features:
 - Netowrk features: DHCPv4 and DHCPv6 with optional static leases, DNS server, IPv6 support (ULA only)
 - Runs on commodity hardware.
 - OpenWrt based (may change in the future)
+
+
+### Installation and usage
+
+Disclaimer: changes to UCI config are performed directly on-disk, and daemons are restarted right after. If there is an issue in the config, you may risk making the device unusable. It's recommended to double-check the produced configurations before applying, and getting familiar with failsafe mode in case things go wrong. Previous experience in Linux administration and OpenWrt is also helps.
+
+Prerequisites:
+- One or more OpenWrt routers (>=19.0.2)
+- Passwordless root access to the router
+- The router can access the internet
+
+Please check the [defaults file](./defaults/main.yml) for a full list of documented role variables.
+Also the [dlan-example](https://github.com/mvitale1989/dlan-example) repo provides a ready-to-use VM-based testbed for trying this project out.
 
 
 ### Target architecture and design
@@ -64,19 +77,6 @@ Compared to an enterprise network, you can see some differences due to the desig
 - It's not shown in the graph but the links are wireguard+VXLAN tunnels, and not physical. This means performance is not even comparable for cross-location communication, and there is a performance hit even when two dlan routers are next to each other in the same location (for encrypting the traffic before having it go through the upstream LAN), but that's traded of for the ability to run on extremely simple hardware setups (fit for home usage), plus great flexibility, simplicity and ease of scaling and configuration. Especially clustered services cannot ignore the latency of cross-location traffic.
 
 Some of the above would be solved by an EVPN setup, but the features you get still may be unjustified for home setups (e.g. geographically distributed L2 makes sense in very few select cases, and multihoming is only partially useful if you anyway have other SPoFs). Still, EVPN would definitely need to be considered for future iterations of the project.
-
-
-### Installation and usage
-
-Disclaimer: changes to UCI config are performed directly on-disk, and daemons are restarted right after. If there is an issue in the config, you may risk making the device unusable. It's recommended to double-check the produced configurations before applying, and getting familiar with failsafe mode in case things go wrong. Previous experience in Linux administration and OpenWrt is also helps.
-
-Prerequisites:
-- One or more OpenWrt machines (>=19.0.2)
-- Passwordless root access to the machine
-- The machine can access the internet
-
-Please check the [defaults file](./defaults/main.yml) for a full list of documented role variables.
-Also the [dlan-example](https://github.com/mvitale1989/dlan-example) repo provides a ready-to-use VM-based testbed for trying this project out.
 
 
 ### F.A.Q.
