@@ -44,6 +44,8 @@ dlan_host_id: ~
 #   in the subnet. The hostname is optional, and if unspecified, dnsmasq will still create a DNS record
 #   for that host, using the hostname that the host put in its DHCP request message.
 # - For WAN: if IPs are unspecified, DHCP (v4 and/or v6) is used
+# - For transit-only routers, like e.g. OVH instances that have only one network port, only
+#   the WAN interface specification needs to be defined.
 #
 # e.g.
 #
