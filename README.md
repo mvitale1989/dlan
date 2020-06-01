@@ -1,5 +1,13 @@
 # dlan
 
+- [dlan](#dlan)
+  * [Target architecture and design](#target-architecture-and-design)
+    - [Tradeoffs](#tradeoffs)
+  * [Installation and usage](#installation-and-usage)
+  * [F.A.Q.](#faq)
+  * [Gotchas](#gotchas)
+  * [Future work](#future-work)
+
 dlan (aka Distributed LAN) is an ansible role to setup a geographically distributed private network, for selfhosting your services. A set of routers (OpenWrt nodes) will act as a virtual perimeter, separating your _internal network_ (spanning multiple locations) from the rest of the web, and securely exposing services running behind it.
 
 Features:
