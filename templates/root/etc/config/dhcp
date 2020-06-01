@@ -1,0 +1,80 @@
+config dnsmasq
+	option domain '{{ dlan_hostname }}.{{ dlan_domain }}'
+	option local '/{{ dlan_hostname }}.{{ dlan_domain }}/'
+{% for router in (hostvars.keys() | reject('equalto', dlan_hostname) | sort) %}
+	list server '/{{ router }}.{{ dlan_domain }}/{{ dlan_loopback_subnet_ipv4 | next_nth_usable(hostvars[router].dlan_host_id) }}'
+{% endfor %}
+{% for server in dlan_upstream_dns_servers %}
+	list server '{{ server }}'
+{% endfor %}
+{% for lan_interface, config in dlan_lan_interfaces_configuration.items() %}
+	list interface '{{ lan_interface }}'
+{% endfor %}
+{% for peer, peer_spec in dlan_links.items() %}
+	list interface 'vx{{ loop.index0 }}'
+{% endfor %}
+	list interface 'wg0'
+	list interface 'lo'
+	list addnhosts '/etc/hosts.dnsmasq'
+	option expandhosts '1'
+	option domainneeded '1'
+	option boguspriv '0'
+	option filterwin2k '0'
+	option localise_queries '0'
+	option rebind_protection '0'
+	option rebind_localhost '1'
+	option nonegcache '0'
+	option authoritative '1'
+	option leasefile '/tmp/dhcp.leases'
+	option resolvfile '/tmp/resolv.conf.auto'
+	option nonwildcard '1'
+	option localservice '0'
+	option cachelocal '1'
+
+{% for lan_interface, config in dlan_lan_interfaces_configuration.items() %}
+config dhcp 'lan{{ loop.index0 }}'
+	option interface 'lan{{ loop.index0 }}'
+	option start '100'
+	option limit '150'
+	option leasetime '12h'
+	option dhcpv4 'server'
+	option dhcpv6 'server'
+	option ra 'server'
+	option ra_management'2'
+{% endfor %}
+
+{% for wan_interface, config in dlan_wan_interfaces_configuration.items() %}
+config dhcp 'wan{{ loop.index0 }}'
+	option interface 'wan{{ loop.index0 }}'
+	option ignore '1'
+{% endfor %}
+
+#config odhcpd 'odhcpd'
+#	option maindhcp '0'
+#	option leasefile '/tmp/hosts/odhcpd'
+#	option leasetrigger '/usr/sbin/odhcpd-update'
+#	option loglevel '4'
+
+
+### Static leases
+
+{% for lan_interface, config in dlan_lan_interfaces_configuration.items() %}
+{% for client_id, lease_spec in (config.leases | default({})).items() %}
+{% set host_id   = ( lease_spec.split(',')[0] | int ) %}
+{% set host_name = lease_spec.split(',')[1] if ',' in lease_spec else None %}
+# {{ client_id }} - lease {{ lease_spec }}
+{% if ":" in client_id %}
+config host 'lease_{{ host_id }}'
+	option mac "{{ client_id }}"
+	option ip "{{ config.subnet_ipv4 | next_nth_usable(host_id) }}"
+{% else %}
+config host 'lease6_{{ host_id }}'
+	option duid "{{ client_id }}"
+	option hostid "{{ host_id }}"
+{% endif %}
+{% if host_name %}
+	option name "{{ host_name }}"
+{% endif %}
+{% endfor %}
+
+{% endfor %}

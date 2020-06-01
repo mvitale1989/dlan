@@ -1,0 +1,11 @@
+---
+dlan_maxhosts: 256
+dlan_reload_service_by_filepath:
+  /etc/config/system: /etc/init.d/system reload
+  /etc/config/network: /etc/init.d/network restart
+  /etc/config/firewall: /etc/init.d/firewall restart
+  /etc/config/dhcp: /etc/init.d/dnsmasq restart
+  /etc/hosts.dnsmasq: /etc/init.d/dnsmasq restart
+  /etc/config/dropbear: /etc/init.d/dropbear reload
+  /etc/bird.conf: "echo down | birdc; /etc/init.d/bird restart"
+  /etc/nginx/nginx.conf: "/usr/sbin/nginx -s reload"

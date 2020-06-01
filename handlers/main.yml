@@ -1,0 +1,9 @@
+---
+- name: Restart network
+  command: "{{ dlan_reload_service_by_filepath['/etc/config/network'] }}"
+- name: Reload service
+  vars:
+    filepath: "/{{ item }}"
+  shell: "{{ dlan_reload_service_by_filepath[filepath] }}"
+  when: filepath in dlan_reload_service_by_filepath
+  with_items: "{{ uci_templating_result | json_query('results[?changed].item.path') }}"

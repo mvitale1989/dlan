@@ -1,0 +1,58 @@
+# TODO: Check max number of routers: the number of routers is < max_routers * (max_routers - 1)?
+# TODO: Check max number of pairs (worst case, each host is connected to all others): the number of routers is < max_routers * (max_routers - 1)? Does the p2p subnet have enough `/30` subnets?
+# TODO: Check, are there any duplicate host ids? Are the host ids valid? (e.g. is it 0? Is it greater than maxhosts?)
+# TODO: check, dnsmasq lease shouldn't have host id 1
+# TODO: Check, are links reciprocated?
+# TODO: Check, is nginx protocol either tcp or udp?
+---
+- include_vars: defaults/internal.yml
+  tags:
+  - always
+- import_tasks: setup_dnsmasq_only.yml
+  tags:
+  - dnsmasq
+- name: Install required packages
+  opkg:
+    name: "{{ item }}"
+    state: present
+    update_cache: yes
+  with_flattened:
+  - wireguard
+  - vxlan
+  - bird2
+  - bird2c
+  - nginx-all-module
+  - "{{ dlan_opkg_install }}"
+  tags:
+  - opkg
+- name: Configure daemons
+  openwrt_init:
+    name: "{{ item.key }}"
+    pattern: "{{ item.key }}"
+    state: "{{ 'started' if item.value == 'enabled' else 'stopped' }}"
+    enabled: "{{ 'yes' if item.value == 'enabled' else 'no' }}"
+  with_dict:
+    uhttpd: disabled
+    bird: enabled
+    nginx: enabled
+  tags:
+  - procd
+- name: Template out configuration
+  template:
+    src: '{{ item.src }}'
+    dest: "/{{ item.path }}"
+  with_filetree: templates/root/
+  when: item.state == 'file' and not (item.src | regex_search("\.swp$"))
+  notify: Reload service
+  register: uci_templating_result
+  tags:
+  - configure
+- name: Fix file permissions
+  file:
+    path: "{{ item.path }}"
+    owner: "{{ item.owner }}"
+    group: "{{ item.group }}"
+    mode: "{{ item.mode | default('0600') }}"
+  with_items:
+  - { path: "/etc/hosts.dnsmasq", owner: "dnsmasq", group: "dnsmasq" }
+  - { path: "/etc/hosts", owner: "root", group: "root", mode: "0644" }

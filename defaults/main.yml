@@ -1,0 +1,206 @@
+---
+#
+# System configuration options
+#
+
+# Hostname of the router, and domain of the internal network
+# `dlan_domain` should be the same for all routers
+dlan_hostname: "{{ inventory_hostname }}"
+dlan_domain: lan
+
+# Upstream DNS IPs, for resolving non-internal records
+dlan_upstream_dns_servers: []
+
+# OpenWrt system settings. Ssh authorized keys, packages to install, etc.
+# - ` dlan_uci_*` variables: are raw content that should be rendered inside of openwrt's
+#   `/etc/config/*` files, for host-specific system configs (e.g. router-internal switch config).
+dlan_authorized_keys: []
+dlan_uci_network_extras: ""
+dlan_uci_dhcp_extras: ""
+dlan_uci_system_extras: ""
+dlan_opkg_install: []
+dlan_system_urandom_seed: "0"
+
+
+
+#
+# Network configuration options. All subnets are in CIDR format
+# 
+# Important:
+# - All `*_subnet_*` should be the same for all routers. It usually makes sense to set them in
+#   `group_vars/all.yml`, or even leave the defaults; just ensure these don't clash with any
+#   LAN-side subnet of any of your routers in this case.
+# - The above doesn't include the ones in `dlan_*_interfaces_configuration`, and especially the LAN
+#   subnets, as these should be unique for each router.
+#
+
+# `dlan_host_id` is an integer, uniquely identifying the host in the dlan mesh. Used to generate IPs.
+dlan_host_id: ~
+
+# Hashmap of linux interface names (and not UCI interface names), and corresponding config
+# - `macaddr` is optional
+# - For LAN: you can declare static leases, mapping either a MAC address (IPv4) or a DUID (IPv6)
+#   to an "id,hostname" string. `id` here is the host part of the IP that is reserved for this lease,
+#   in the subnet. The hostname is optional, and if unspecified, dnsmasq will still create a DNS record
+#   for that host, using the hostname that the host put in its DHCP request message.
+# - For WAN: if IPs are unspecified, DHCP (v4 and/or v6) is used
+#
+# e.g.
+#
+# dlan_wan_interfaces_configuration:
+#   "eth0.2":
+#     macaddr: "b8:69:f4:fd:53:52"
+#     subnet_ipv4: "1.2.3.4/24"
+#     gateway_ipv4: "1.2.3.1"
+#     subnet_ipv6: "2001::2/64"
+#     gateway_ipv6: "2001::1"
+# dlan_lan_interfaces_configuration:
+#   eth1:
+#     macaddr: "b8:69:f4:fd:53:52"
+#     subnet_ipv4: "10.2.0.0/24"
+#     subnet_ipv6: "fd35:6d2e:5a1b::/64"
+#     leases:
+#       "52:54:00:5a:bf:0b": "2,somehostname"
+#       "00010001265c6a195254005abf0b": "2,somehostname"
+#       "52:54:00:6b:c0:1c": "3"
+dlan_wan_interfaces_configuration: {}
+dlan_lan_interfaces_configuration: {}
+
+# `dlan_loopback_subnet`: used, along the `dlan_host_id`, to produce IPs that uniquely identify
+# a router in the mesh. This is advertised through OSPF and thus may be used to communicate with
+# a certain router.
+# See readme on why the wireguard subnet, despite also uniquely identifying a host, can't be
+# used for this.
+dlan_loopback_subnet_ipv4: "10.1.1.0/24"
+dlan_loopback_subnet_ipv6: "fd00:0000:0001:0001::/64"
+
+# OSPF setttings
+# - `dlan_ospf_psk` may be generated with e.g. `pwgen 64 -N1`, and should be the same for all routers
+# - `dlan_ospf_subnet_pool_ipv4` is used to generate `/30` subnet blocks to use in the vxlan
+#   point-to-point links. These are mainly used in OSPF for populating the routing table with
+#   next-hop entries.
+# - There's no need for a corresponding OSPF IPv6 subnet pool. OSPF uses link-local addresses
+#   for IPv6, which is generated automatically by the kernel..
+dlan_ospf_psk: ~
+dlan_ospf_subnet_pool_ipv4: "10.0.0.0/16"
+
+# Wireguard settings
+# - `dlan_wg_psk` should be the same on all hosts. Use `wg genpsk` to generate one.
+# - `dlan_wg_subnet` is used only for hop-by-hop vxlan packets, and not for mesh-wide reachablilty
+#   See readme for the reason why
+dlan_wg_port: 51820
+dlan_wg_psk: ~
+dlan_wg_subnet_ipv4: "10.1.0.0/24"
+dlan_wg_subnet_ipv6: "fd00:0000:0001:0000::/64"
+dlan_wg_pubkey: ~
+dlan_wg_privkey: ~
+
+# Additional static DNS entries on this router.
+# - To have a DNS record with multiple IPs, simply add the same name to different IPs in the hashmap.
+#   This is useful if you have services that span across multiple hosts, and you want to loadbalance
+#   across all those hosts for load distribution and resiliency (e.g. as for kubernetes NodePort
+#   services)
+#
+# e.g.
+#
+# dlan_host_records:
+#   "192.168.1.3": [ host1.example.com ]
+#   "192.168.1.4": [ host2.example.com ]
+#   "192.168.1.100": [ service1.example.com ]
+#   "192.168.1.101": [ service1.example.com ]
+dlan_host_records: {}
+
+# Hashmap that states which routers should be (virtually) adjacent to this one
+# - Each entry in this hashmap defines a VIRTUAL TUNNEL (wireguard+VXLAN) from this router to another.
+#   That means, routers listed here will be ADJACENT to this one (assuming that this tunnel
+#   declaration is reciprocated) in the resulting overlay network.
+#   Internal traffic may flow directly between adjacent (aka linked) routers, through this virtual
+#   L2 link. Also the OSPF protocol is used on these.
+# - Link relationship MUST be reciprocated, for the virtual link to work.
+#   E.g. if routeA declares a link to routerB, then also routerB must declare a link to routerA, so
+#   that ansible may populate the wireguard and vxlan configuration accordingly.
+# - The hashmap keys are the other router's names as specified in the ansible inventory.
+#   For each key, the value is a hashmap, defining both the wireguard endpoint on which that other
+#   router is reachable on (`host` and `port`; port defaults to `51820`), and the OSPF link `cost`
+#   (defaults to `10`).
+# - Specifying the host is necessary only on one side of the pair. If `host` is unspecified, then the
+#   wireguard peer configuration for that router doesn't contain any `endpoint` entry, which puts
+#   wireguard in learning mode for it. So it's expected that the router on the other side will
+#   initiate the communication, and the current router will learn the remote IP of that peer instead.
+#   This feature is useful if one of the routers doesn't have a publicly reachable IP (e.g. is behind
+#   a NATting firewall for which you can't specify any port forwarding rules), e.g.:
+#   if routerA is publicly reachable and routerB isn't, and you want to create a virtual tunnel
+#   between the two, then you'd have them specify each other in the respective `dlan_links`;
+#   routerA's configuration for routerB won't contain `host`, while routerB will specify in its routerA
+#   entry the public IP or hostname to reach routerA, in its `host` field. This will make routerB the
+#   connection initiator, and routerA will learn routerB's public IP after a first packet is received
+#   (security is given by wireguard here, that does peer authentication through the peer's pubkey).
+# - Two adjacent routers may also be in the same LAN (= their WAN ports are connected to the same
+#   upstream home router), in which case the peer's IP will be in the private range.
+#   This means that communication is encrypted also in this scenario, which is by design due to the
+#   principle "anything beyond the WAN port is untrusted" (and thus, the upstream home network).
+#
+# e.g.
+#
+# dlan_links:
+#   routerB: { ip: "192.168.123.101" }
+#   routerC:
+#     host: "192.168.123.101"
+#     port: 51820
+#     cost: 100
+#   routerD: {}
+dlan_links: {}
+
+# Rules to expose internal TCP/UDP services
+# - `dlan_proxy` is a list of rules to configure to configure both nginx and the firewall
+#    for passing packets and connections to some backend server.
+# - TODO the following is currently unsupported, needs implementing multiple static IPs for WAN.
+#   Tip: you can expose multiple internal services on the same port from a single publicly
+#   reachable dlan router (e.g. you run multiple web servers internally, and you want them
+#   to be all behind port 80 of this publicly reachable router). To do so, you first need
+#   that router to have multiple public IPs, one for each internal service you want to
+#   expose on that single port; then simply have a `dlan_proxy`  entry for each upstream
+#   service, mapping 1-to-1 each internal service to each of the public IPs, but use the
+#   same port on all of these proxy entries (e.g. 80).
+#   This will make nginx bind on port 80 on each of those public IP, and when a client
+#   connects to one of those IPs, nginx will know which internal service to proxy to.
+#   * This doesn't work if the instance isn't aware of its public IPs (e.g. EC2 instances in
+#     private subnets), as this method relies on nginx binding to different IPs on the host.
+#   * If doing so, be careful to specify _all_ the address you want the server to reply on,
+#     even internal ones. Firewall is not a problem here (all LAN traffic flows freely), but IP
+#     binding limits the way endpoints you can reach your service on, compared to just using
+#     `0.0.0.0`.
+#
+# Parameters for each entry:
+# - `name` is used to identify the service name in nginx's config and firewall rules. Mainly
+#    informative.
+# - `protocol` may be either `tcp` or `udp`
+# - `use_proxy_protocol`: if enabled, then nginx will use the proxy protocol for upstream
+#  connections to your servers. Ensure that your servers are expecting the proxy protocol
+#  themselves, if you enable this.
+# - `listen` is an array of ip+ports to listen on, on WAN side. Used as-is in nginx's `listen`
+#   directive (and also parsed for firewall configuration), so the same rules apply.
+#   tl;dr can be either an `ip:port`, or just a `port` to bind against (IP will default
+#   to `0.0.0.0`). If listening on an IPv6, the address should be in square brackets,
+#   e.g. `[::]:80`.
+# - `upstreams` is an array of upstream specifications, where your services are listening on in
+#   the internal network. It'ìs used as-is in nginx's `upstream` server entries, so the same
+#   rules apply.
+#   tl;dr in its simplest form, it's an `host:port` combination, where host may be either an
+#   IP address or a  hostname (the local dnsmasq is used for resolution, so internal names or
+#   static host entries specified in the dlan config may be used; NB: see gotcha on nginx's
+#   name resolution).
+#
+# e.g.
+#
+# dlan_proxy:
+# - name: http
+#   protocol: tcp
+#   use_proxy_protocol: true
+#   listen:
+#   - "0.0.0.0:80"
+#   - "[::]:80"
+#   upstreams:
+#   - "192.168.1.1:80"
+#   - "192.168.1.2:80"
+dlan_proxy: []

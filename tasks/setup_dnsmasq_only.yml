@@ -1,0 +1,51 @@
+---
+- name: Check if dnsmasq-dhcpv6 is installed
+  shell: "opkg list-installed | grep -qE '^dnsmasq-dhcpv6 '"
+  changed_when: "False"
+  failed_when: "False"
+  check_mode: no
+  register: dlan_fact_is_dnsmasq_dhcpv6_installed
+- block:
+  - name: Stop the dnsmasq and odhcpd daemons
+    openwrt_init:
+      name: "{{ item }}"
+      pattern: "{{ item }}"
+      state: stopped
+      enabled: no
+    with_items:
+    - dnsmasq
+    - odhcpd
+  - name: Remove dnsmasq and odhcpd
+    opkg:
+      name: "{{ item }}"
+      state: absent
+      update_cache: no
+    with_items:
+    - dnsmasq
+    - dnsmasq-full
+    - odhcpd
+    - odhcpd-ipv6only
+    - odhcp6c
+  - name: Ensure upstream DNS servers exist in resolv.conf
+    blockinfile:
+      path: "/etc/resolv.conf"
+      marker: "# {mark} dlan managed block"
+      block: |
+        {% for server in dlan_upstream_dns_servers %}
+        nameserver {{ server }}
+        {% endfor %}
+  - name: Install dnsmasq-dhcpv6
+    opkg:
+      name: dnsmasq-dhcpv6
+      state: present
+      update_cache: yes
+  - name: Ensure upstream DNS servers are removed from resolv.conf
+    blockinfile:
+      path: "/etc/resolv.conf"
+      marker: "# {mark} dlan managed block"
+      block: ""
+  - name: Cleanup /tmp/hosts/odhcpd
+    file:
+      path: /tmp/hosts/odhcpd
+      state: absent
+  when: "dlan_fact_is_dnsmasq_dhcpv6_installed.rc != 0"

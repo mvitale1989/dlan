@@ -1,0 +1,3 @@
+{% for ip, hostnames in dlan_host_records.items() %}
+{{ ip }} {{ hostnames | join(' ') }}
+{% endfor %}

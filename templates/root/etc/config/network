@@ -1,0 +1,107 @@
+### Loopback interface
+### The link-local address is needed to make ospfv3 work with lo
+{% set loopback_address_ipv4 = ( dlan_loopback_subnet_ipv4 | next_nth_usable(dlan_host_id | int) ) %}
+{% set loopback_address_ipv6 = ( dlan_loopback_subnet_ipv6 | next_nth_usable(dlan_host_id | int) ) %}
+config interface 'lo'
+	option ifname 'lo'
+	option proto 'static'
+	option ip6addr '::1/128'
+	option ipaddr '127.0.0.1'
+	option netmask '255.0.0.0'
+config interface 'lo_site'
+	option ifname 'lo'
+	option proto 'static'
+	option ip6addr '{{ loopback_address_ipv6 }}'
+	option ipaddr '{{ loopback_address_ipv4 }}'
+	option netmask '255.255.255.255'
+config interface 'lo_linklocal'
+	option ifname 'lo'
+	option proto 'static'
+	option ip6addr 'fe80::1/128'
+
+{% for wan_interface, config in dlan_wan_interfaces_configuration.items() %}
+### WAN interface {{ wan_interface }}
+config interface 'wan{{ loop.index0 }}'
+	option ifname '{{ wan_interface }}'
+{% if 'subnet_ipv4' in config %}
+	option proto 'static'
+	option ipaddr '{{ config.subnet_ipv4 | ipaddr("address") }}'
+	option netmask '{{ config.subnet_ipv4 | ipaddr("netmask") }}'
+	option gateway '{{ config.gateway_ipv4 }}'
+{% else %}
+	option proto 'dhcp'
+{% endif %}
+{% if 'macaddr' in config %}
+	option macaddr '{{ config.macaddr }}'
+{% endif %}
+config interface 'wan{{ loop.index0 }}_ipv6'
+	option ifname '{{ wan_interface }}'
+{% if 'subnet_ipv6' in config %}
+	option proto 'static'
+	option ip6addr '{{ config.subnet_ipv6 }}'
+	option ip6gw '{{ config.gateway_ipv6 }}'
+{% else %}
+	option proto 'dhcpv6'
+{% endif %}
+{% endfor %}
+
+{% for lan_interface, config in dlan_lan_interfaces_configuration.items() %}
+### LAN interface {{ lan_interface }}
+config interface 'lan{{ loop.index0 }}'
+	option ifname '{{ lan_interface }}'
+	option proto 'static'
+	option ip6addr '{{ config.subnet_ipv6 | ipaddr(1) }}'
+	option ipaddr '{{ config.subnet_ipv4 | next_nth_usable(1) }}'
+	option netmask '{{ config.subnet_ipv4 | ipaddr("netmask") }}'
+{% if 'macaddr' in config %}
+	option macaddr '{{ config.macaddr }}'
+{% endif %}
+{% endfor %}
+
+
+### User-defined extra configuration
+{{ dlan_uci_network_extras }}
+
+
+### Local wireguard interface
+{% set wg_address_ipv4 = ( dlan_wg_subnet_ipv4 | next_nth_usable(dlan_host_id | int) ) %}
+{% set wg_address_ipv6 = ( dlan_wg_subnet_ipv6 | next_nth_usable(dlan_host_id | int) ) %}
+config interface 'wg0'
+	option proto 'wireguard'
+	option private_key '{{ dlan_wg_privkey }}'
+	option listen_port '{{ dlan_wg_port }}'
+	list addresses '{{ wg_address_ipv4 }}'
+	list addresses '{{ wg_address_ipv6 }}'
+ 
+{% for peer, peer_spec in dlan_links.items() %}
+{% set peer_variables = hostvars[peer] %}
+{% set wg_peer_address_ipv4 = ( dlan_wg_subnet_ipv4 | next_nth_usable(peer_variables.dlan_host_id | int) ) %}
+{% set wg_peer_address_ipv6 = ( dlan_wg_subnet_ipv6 | next_nth_usable(peer_variables.dlan_host_id | int) ) %}
+{% set wg_pair_nodeids = [dlan_host_id | int, peer_variables.dlan_host_id | int] %}
+{% set wg_pair_id = ( dlan_maxhosts * (wg_pair_nodeids | min) ) + (wg_pair_nodeids | max) %}
+{% set wg_pair_local_ip_cidr = dlan_ospf_subnet_pool_ipv4 | ipsubnet(30, wg_pair_id) | ipaddr(1 if dlan_host_id == (wg_pair_nodeids | min) else 2) %}
+### Peer connection to {{ peer }} + VXLAN link
+config wireguard_wg0 'wg0_peer{{ loop.index0 }}'
+	option public_key '{{ peer_variables.dlan_wg_pubkey }}'
+	option preshared_key '{{ dlan_wg_psk }}'
+{% if peer_spec and 'ip' in peer_spec %}
+	option endpoint_host '{{ peer_spec.ip }}'
+	option endpoint_port '{{ peer_spec.port | default(51820) }}'
+{% endif %}
+	option route_allowed_ips 'true'
+	option persistent_keepalive '30'
+	list allowed_ips '{{ wg_peer_address_ipv4 }}'
+	list allowed_ips '{{ wg_peer_address_ipv6 }}'
+config interface 'vx{{ loop.index0 }}'
+	option proto 'vxlan'
+	option tunlink 'wg0'
+	option peeraddr '{{ wg_peer_address_ipv4 }}'
+	option port '4789'
+	option vid '{{ wg_pair_id }}'
+config interface 'vx{{ loop.index0 }}_alias'
+	option ifname 'vx{{ loop.index0 }}'
+	option proto 'static'
+	option ipaddr '{{  wg_pair_local_ip_cidr | ipaddr("address") }}'
+	option netmask '{{ wg_pair_local_ip_cidr | ipaddr("netmask") }}'
+
+{% endfor %}

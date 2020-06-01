@@ -1,0 +1,25 @@
+galaxy_info:
+  author: Mario Vitale
+  description: Ansible role to build distributed, private networks for selfhosting your services 
+  company: ~
+
+  # https://spdx.org/licenses/
+  license: BSD-3-Clause
+
+  min_ansible_version: 2.9
+
+  # OpenWRT does not currently exist under https://galaxy.ansible.com/api/v1/platforms/
+  #
+  # platforms:
+  # - name: OpenWrt
+  #   versions:
+  #   - 19.07
+
+  galaxy_tags:
+  - network
+  - networking
+  - openwrt
+  - wireguard
+  - vxlan
+  - ospf
+  - nginx

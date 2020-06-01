@@ -1,0 +1,9 @@
+{% set loopback_address_ipv4 = ( dlan_loopback_subnet_ipv4 | next_nth_usable(dlan_host_id | int) ) %}
+{% set loopback_address_ipv6 = ( dlan_loopback_subnet_ipv6 | next_nth_usable(dlan_host_id | int) ) %}
+127.0.0.1 localhost
+{{ loopback_address_ipv4 }} {{ dlan_hostname }}.{{ dlan_domain }} {{ dlan_hostname }}
+
+::1     localhost ip6-localhost ip6-loopback
+{{ loopback_address_ipv6 }} {{ dlan_hostname }}.{{ dlan_domain }} {{ dlan_hostname }}
+ff02::1 ip6-allnodes
+ff02::2 ip6-allrouters
