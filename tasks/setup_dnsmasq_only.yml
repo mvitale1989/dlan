@@ -25,7 +25,6 @@
     - dnsmasq-full
     - odhcpd
     - odhcpd-ipv6only
-    - odhcp6c
   - name: Ensure upstream DNS servers exist in resolv.conf
     blockinfile:
       path: "/etc/resolv.conf"

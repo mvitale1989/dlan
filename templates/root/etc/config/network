@@ -42,6 +42,7 @@ config interface 'wan{{ loop.index0 }}_ipv6'
 	option ip6gw '{{ config.gateway_ipv6 }}'
 {% else %}
 	option proto 'dhcpv6'
+	option reqprefix 'no'
 {% endif %}
 {% endfor %}
 

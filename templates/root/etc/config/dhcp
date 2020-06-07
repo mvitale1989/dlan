@@ -47,6 +47,9 @@ config dhcp 'lan{{ loop.index0 }}'
 config dhcp 'wan{{ loop.index0 }}'
 	option interface 'wan{{ loop.index0 }}'
 	option ignore '1'
+config dhcp 'wan{{ loop.index0 }}_ipv6'
+	option interface 'wan{{ loop.index0 }}_ipv6'
+	option ignore '1'
 {% endfor %}
 
 #config odhcpd 'odhcpd'
