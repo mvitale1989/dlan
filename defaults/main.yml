@@ -156,7 +156,7 @@ dlan_links: {}
 # Rules to expose internal TCP/UDP services
 # - `dlan_proxy` is a list of rules to configure to configure both nginx and the firewall
 #    for passing packets and connections to some backend server.
-# - TODO the following is currently unsupported, needs implementing multiple static IPs for WAN.
+# - TODO support for multiple static IPs for WAN is currently not implemented.
 #   Tip: you can expose multiple internal services on the same port from a single publicly
 #   reachable dlan router (e.g. you run multiple web servers internally, and you want them
 #   to be all behind port 80 of this publicly reachable router). To do so, you first need
@@ -190,8 +190,9 @@ dlan_links: {}
 #   rules apply.
 #   tl;dr in its simplest form, it's an `host:port` combination, where host may be either an
 #   IP address or a  hostname (the local dnsmasq is used for resolution, so internal names or
-#   static host entries specified in the dlan config may be used; NB: see gotcha on nginx's
-#   name resolution).
+#   static host entries specified in the dlan config may be used)
+#   Tip: to avoid surprises, it's usually better to not use DNS records that are expected to
+#   change over time. See nginx's name resolution question in the F.A.Q.
 #
 # e.g.
 #
@@ -206,3 +207,9 @@ dlan_links: {}
 #   - "192.168.1.1:80"
 #   - "192.168.1.2:80"
 dlan_proxy: []
+
+# Have nginx listen on the following port with the `stub_status` module.
+# Useful if you need to monitor your router.
+# - Currently we listen on the wildcard IP, both IPv4 and IPv6. No fierewall
+#   rule is added for this port, so it's still accessible from LAN only.
+dlan_nginx_status_port: ~
