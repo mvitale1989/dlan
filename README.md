@@ -2,15 +2,15 @@
 
 * [Overview](#dlan)
 * [Installation and usage](#installation-and-usage)
-* [Architecture and design](./docs/architecture.md)
-* [F.A.Q.](./docs/faq.md)
+* [Architecture and design](#architecture-and-design)
+* [Frequently asked questions](#frequently-asked-questions)
 * [Future work](#future-work)
 
 dlan (aka Distributed LAN) is an ansible role to setup a geographically distributed private network, for selfhosting your services. A set of routers (OpenWrt nodes) will act as a virtual perimeter, separating your _internal network_ (spanning multiple locations) from the rest of the web, and securely exposing services running behind it.
 
 In a nutshell, dlan lets you build a WAN that mimics the semantics of a home LAN.
 
-[Overview of a dlan setup](./docs/overview.svg)
+![Overview of a dlan setup](./docs/overview.svg)
 
 Features:
 - Transparent, private L3 connectivity among internal hosts. Routers will take care of creating an encrypted overlay network (wireguard, VXLAN, OSPF), so that you can just plug a host into a LAN port of any of the routers, to make it securely reachable from any other host and router in the dlan.
@@ -35,6 +35,15 @@ Prerequisites:
 Please check the [defaults file](./defaults/main.yml) for a full list of documented role variables.
 Also the [dlan-example](https://github.com/mvitale1989/dlan-example) repo provides a ready-to-use VM-based testbed for trying this project out.
 
+
+### Architecture and design
+
+See the [architecture and design](./docs/architecture.md) document.
+
+
+### Frequently asked questions
+
+See the [F.A.Q.](./docs/faq.md) document.
 
 
 ### Future work

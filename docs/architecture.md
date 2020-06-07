@@ -1,5 +1,9 @@
 # Target architecture and design
 
+- [Goal of the project](#target-architecture-and-design)
+- [Architecture](#architecture)
+- [Tradeoffs](#tradeoffs)
+
 Use case of this project: you want to host some services, but...
 - You want to own the hardware they run on
 - You have multiple places you run your own hardware in (e.g. your home, your vacation home, your friend's house, your grandma's...)
@@ -14,7 +18,7 @@ dlan tries to take care of these networking requirements for you. So it's about 
 
 Given the following example hardware setup, and assuming you can't control (or don't want to rely on) H1 or H2's configuration:
 
-![Physical overview of the infrastructure](./docs/physical_overview.svg)
+![Physical overview of the infrastructure](./physical_overview.svg)
 
 - The servers S1 to S7 are all connected to the LAN port(s) of routers R1, R2 and R3.
 - The WAN ports of R1, R2 and R3 are connected to the home router of the physical location they're in. They're said to be _cascaded_ to the home routers.
@@ -34,7 +38,7 @@ To achieve the above, each router will run wireguard+VXLAN tunnels for logical c
 
 After programming the routers with as many peerings as we can (as recommended), the logical overview of the above setup (aka _overlay network_) would be as follows:
 
-![Corresponding overlay network](./docs/logical_overview.svg)
+![Corresponding overlay network](./logical_overview.svg)
 
 You may notice that this architecture resembles a redundant hub-and-spoke VPN, with R4 and R5 both acting as hub. However do notice that it's actually a partial mesh, because R2 and R3 are connected, to have the traffic between e.g. S2 and S5 go directly through the LAN (but still encrypted, as the upstream LAN is assumed to be untrusted), instead of hopping through R4 or R5. Infrastructure where you have routers behind many different NATted networks will tend towards this architecture, but in the favourable case where you control the upstream home routers you should create portforwardings to your router's wireguard ports, and create as many connections as you can; ideally your logical layout would be a full mesh for maximum efficiency (less hops = less latency, less cumulative network bandwidth, less compute resources used).
 
@@ -43,7 +47,7 @@ You may notice that this architecture resembles a redundant hub-and-spoke VPN, w
 
 dlan's design is inspired by the hyperconverged architecture: to scale your computing capacity, simply add more of the same. In this case, dlan acts as the network portion of such a concept, and the unit of scaling and redundancy is the dlan router along with the servers behind it. You can almost think of the dlan router as a Top-of-Rack switch (or core switch, if it has no LAN portion), and the server connected to its LAN ports as the servers in the same rack cabinet (with due differences, see below).
 
-![Parallel with enterprise network setups](./docs/hci.svg)
+![Parallel with enterprise network setups](./hci.svg)
 
 Redundancy here is achieved by adding more routers, along with more hosts behind them. Each router+server kinda acts as an Availability Zone (or not really, depending on conditions; e.g. if they're in the same house, the Single Point of Failure would still be the home router, or the powerline of your home, etc).
 
