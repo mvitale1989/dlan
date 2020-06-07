@@ -16,6 +16,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `ipv6only` option on nginx's `listen` directives has been removed
 - Improved documentation, should now be more readable
 
+### Fixed
+- Do not uninstall the odhcp6c DHCPv6 client program
+
 ## [0.9.0] - 2020-06-02
 ### Added
 - Initial release of the project
